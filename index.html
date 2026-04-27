@@ -362,10 +362,8 @@ freq/10), this.ctx.currentTime + duration);
         });
         document.addEventListener('keyup', e => { this.keys[e.code] = false; });
 
-        document.addEventListener('touchstart', (e) => { audio.init();
-this.tap = true; }, {once: true});
-        document.addEventListener('mousedown', (e) => { audio.init();
-this.tap = true; }, {once: true});
+        document.addEventListener('touchstart', (e) => { audio.init(); this.tap = true; });
+        document.addEventListener('mousedown', (e) => { audio.init(); this.tap = true; });
       },
       consumeTap() { if (this.tap) { this.tap = false; return true; }
         return false;
@@ -531,11 +529,10 @@ cost: [200, 500, 1000], max: 3, color: '#F97316' }
         }
       }
 
-      start() { this.reset(); this.resize(); this.initClouds();
+      start() { this.lastTime = performance.now(); this.reset(); this.resize(); this.initClouds();
         this.state = 'PLAYING';
         this.bird.y = this.height * 0.35;
         this.bird.vy = -2;
-        this.lastTime = performance.now();
         UI.hideAll();
         UI.show('hud');
         document.getElementById('hud-score').textContent = '0';
