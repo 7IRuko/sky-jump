@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#29ADFF">
+  <title>Sky Jump</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600; 700;800;900&family=Lexend:wght@700&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    window.tailwind.config = { theme: { extend: { colors: { sky: '#29ADFF',
+            'sky-dark': '#1E90FF',
+            grass: '#7ED321',
+            sunny: '#F8E71C',
+            pop: '#FF5A5F',
+            ink: '#2D3436',
+            surface: '#F5F5F5',
+            'on-surface': '#1A1C1C'
+          },
+          fontFamily: { jakarta: ['"Plus Jakarta Sans"', 'sans-serif'],
+            lexend: ['"Lexend"', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root { --ink: #2D3436;
+      --shadow-3d: 0 6px 0 var(--ink);
+      --shadow-3d-active: 0 2px 0 var(--ink);
+      --text-stroke: -2px -2px 0 var(--ink), 2px -2px 0 var(--ink),
+        -2px 2px 0 var(--ink), 2px 2px 0 var(--ink);
+    }
+
+    body { overflow: hidden;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Typography */
+    .game-title { font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 3.5rem;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: #F8E71C;
+      text-shadow: var(--text-stroke), 4px 4px 0 rgba(0,0,0,0.25);
+    }
+
+    .score-display { font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 4rem;
+      line-height: 1;
+      letter-spacing: 0.05em;
+      text-shadow: var(--text-stroke);
+    }
+
+    .cartoon-text { color: white;
+      text-shadow: var(--text-stroke);
+    }
+
+    /* Buttons */
+    .btn-bubbly { position: relative;
+      border: 4px solid var(--ink);
+      border-radius: 9999px;
+      font-family: 'Lexend', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      padding: 0.75rem 2rem;
+      box-shadow: var(--shadow-3d);
+      transition: transform 0.08s ease, box-shadow 0.08s ease;
+      cursor: pointer;
+    }
+    .btn-bubbly:active { transform: translateY(4px);
+      box-shadow: var(--shadow-3d-active);
+    }
+    .btn-bubbly.btn-primary { background: #7ED321; color: white; }
+    .btn-bubbly.btn-secondary { background: #29ADFF; color: white; }
+    .btn-bubbly.btn-accent { background: #F8E71C; color: var(--ink); }
+    .btn-bubbly.btn-danger { background: #FF5A5F; color: white; }
+    .btn-bubbly.btn-neutral { background: #F5F5F5; color: var(--ink); }
+
+    /* Screens & Transitions */
+    .screen { position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.95);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    .screen.active { opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+    #start-screen { background: transparent; }
+    #gameover-screen { background: rgba(255,255,255,0.75);
+backdrop-filter: blur(6px); }
+    #shop-screen, #leaderboard-screen { background: #F8E71C; }
+
+    /* HUD */
+    #game-hud { z-index: 20;
+      pointer-events: none;
+    }
+    #game-hud .interactive { pointer-events: auto; }
+
+    /* Card & UI Elements */
+    .card-rounded { background: white;
+      border: 4px solid var(--ink);
+      border-radius: 1.5rem;
+    }
+
+    .star-filled { color: #F8E71C; text-shadow: 2px 2px 0 var(--ink); }
+    .star-empty { color: #E5E5E5; text-shadow: 2px 2px 0 var(--ink); }
+
+    /* Animations */
+    @keyframes bounce-subtle { 0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+    .bounce-anim { animation: bounce-subtle 2s infinite ease-in-out; }
+
+    .float-score { position: absolute;
+      font-weight: 800;
+      color: white;
+      text-shadow: var(--text-stroke);
+      opacity: 0;
+      transform: translateY(0);
+      transition: all 0.5s ease-out;
+    }
+  </style>
+</head>
+<body class="bg-sky h-screen w-screen overflow-hidden">
+
+  <canvas id="gameCanvas" class="fixed inset-0 w-full h-full z-0"></canvas>
+
+  <!-- START SCREEN -->
+  <div id="start-screen" class="screen active">
+    <h1 class="game-title text-center mb-6">SKY JUMP</h1>
+    <div id="start-mascot" class="w-20 h-20 bg-sunny rounded-full border-4 border-ink mb-8 bounce-anim"></div>
+    <div class="flex flex-col gap-4 w-full max-w-xs px-2">
+      <button id="btn-play" class="btn-bubbly btn-primary w-full">PLAY</button>
+      <button id="btn-leaderboard-open" class="btn-bubbly btn-secondary w-full">LEADERBOARD</button>
+      <button id="btn-shop-open" class="btn-bubbly btn-accent w-full">UPGRADES</button>
+      <div class="text-center mt-4 text-ink font-jakarta font-bold"
+id="best-score-display">BEST: 0</div>
+    </div>
+  </div>
+
+  <!-- GAME HUD -->
+  <div id="game-hud" class="absolute inset-0 p-4 flex justify-between items-start hidden">
+    <div class="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-1 border-2 border-ink/30">
+      <div class="w-5 h-5 bg-sunny rounded-full border-2 border-ink flex items-center justify-center text-[8px] text-ink font-bold">$</div>
+      <span id="hud-coins" class="text-white font-jakarta font-bold text-lg shadow-text">0</span>
+    </div>
+    <div id="hud-score" class="score-display text-white">0</div>
+    <button id="btn-pause" class="interactive w-12 h-12 bg-white rounded-full border-4 border-ink flex items-center justify-center shadow-3d active:translate-y-1 active:shadow-3d-active transition-all">
+      <div class="w-3 h-4 bg-ink"></div>
+      <div class="w-[3px] h-4 bg-ink mx-1"></div>
+    </button>
+  </div>
+
+  <!-- PAUSE OVERLAY -->
+  <div id="pause-overlay" class="screen z-30" style="background: rgba(44,62,80,0.6); backdrop-filter: blur(8px); display: none;">
+    <h2 class="score-display text-white mb-6">PAUSED</h2>
+    <div class="flex flex-col gap-4 w-full max-w-xs">
+      <button id="btn-resume" class="btn-bubbly btn-primary w-full">RESUME</button>
+      <button id="btn-pause-home" class="btn-bubbly btn-neutral w-full">HOME</button>
+    </div>
+  </div>
+
+  <!-- GAME OVER SCREEN -->
+  <div id="gameover-screen" class="screen">
+    <div class="card-rounded p-6 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center">
+      <h2 class="font-jakarta font-extrabold text-3xl text-ink mb-2">GAME
+OVER</h2>
+      <div id="go-current-score" class="score-display text-pop mb-2">0</div>
+      <div class="font-jakarta font-bold text-ink/70 mb-1"
+id="go-best-score">BEST: 0</div>
+      <div class="flex gap-1 my-3 text-3xl" id="go-stars">
+        <span>★</span><span>★</span><span>★</span>
+      </div>
+      <div class="font-jakarta font-bold text-sunny mb-6" id="go-coins">+0
+COINS</div>
+      <div class="flex flex-col gap-3 w-full">
+        <button id="btn-restart" class="btn-bubbly btn-danger w-full">PLAY
+AGAIN</button>
+        <button id="btn-go-home" class="btn-bubbly btn-neutral w-full">HOME</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHOP SCREEN -->
+  <div id="shop-screen" class="screen">
+    <div class="w-full max-w-md h-full flex flex-col py-4">
+      <header class="flex items-center justify-between px-2 mb-6">
+        <button id="btn-shop-back" class="w-10 h-10 bg-white rounded-full border-4 border-ink flex items-center justify-center active:translate-y-1 transition-transform">←</button>
+        <h2 class="font-jakarta font-extrabold text-xl text-ink">UPGRADES</h2>
+        <div class="flex items-center gap-1 bg-white px-3 py-1 rounded-full border-4 border-ink">
+          <div class="text-sunny font-bold">$</div>
+          <span id="shop-coins" class="font-jakarta font-bold">0</span>
+        </div>
+      </header>
+      <div class="grid grid-cols-2 gap-4 overflow-y-auto px-2 pb-4"
+id="shop-grid">
+        <!-- Items injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD SCREEN -->
+  <div id="leaderboard-screen" class="screen">
+    <div class="w-full max-w-md h-full flex flex-col py-4">
+      <header class="flex items-center px-2 mb-6">
+        <button id="btn-lb-back" class="w-10 h-10 bg-white rounded-full border-4 border-ink flex items-center justify-center active:translate-y-1 transition-transform">←</button>
+        <h2 class="font-jakarta font-extrabold text-xl text-ink flex-1 text-center pr-10">LEADERBOARD</h2>
+      </header>
+      <div class="flex flex-col gap-3 overflow-y-auto px-2 pb-4"
+id="lb-list">
+        <!-- Rows injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // SECTION: CONFIG & CONSTANTS
+    // ==========================================
+    const CONFIG = { colors: { skyTop: '#29ADFF', skyBottom: '#1E90FF', grass: '#7ED321',
+        pipe: ['#5CB85C', '#7ED321'], coin: '#F8E71C', skinDefault: '#F8E71C',
+        ink: '#2D3436'
+      },
+      gravity: 0.4,
+      flapForce: -7.5,
+      birdXRatio: 0.25,
+      birdRadiusRatio: 0.04,
+      groundRatio: 0.12,
+      pipeWidth: 52,
+      pipeCapHeight: 22,
+      capOverhang: 12,
+      baseSpawnInterval: 1500,
+      minSpawnInterval: 1000,
+      maxDt: 33
+    };
+
+    // ==========================================
+    // SECTION: STORAGE MANAGER
+    // ==========================================
+    const STORAGE_KEYS = { best: 'sj_best', coins: 'sj_coins', upgrades: 'sj_upgrades', leaderboard: 'sj_leaderboard', version: 1 };
+
+    const StorageManager = { data: {},
+      init() { try { this.data = JSON.parse(localStorage.getItem('sj_save')) || this.getDefaults();
+          if (this.data.version < STORAGE_KEYS.version) this.migrate();
+        } catch { this.data = this.getDefaults();
+          this.save();
+        }
+      },
+      getDefaults() { return { version: STORAGE_KEYS.version,
+          best: 0,
+          coins: 150,
+          upgrades: { skin: 'default', ownedSkins: ['default', 'red', 'blue',
+'gold'],
+            shield: 0, magnet: 0, multiplier: 0
+          },
+          leaderboard: [ { name: 'Alex', score: 24, date: '01/01', crown: true },
+            { name: 'Sam', score: 12, date: '02/05', crown: false },
+            { name: 'Max', score: 5, date: '03/10', crown: false }
+          ]
+        };
+      },
+      migrate() { this.data.version = STORAGE_KEYS.version;
+        this.save();
+      },
+      save() { localStorage.setItem('sj_save', JSON.stringify(this.data));
+      },
+      get(key) { return this.data[key]; },
+      set(key, val) { this.data[key] = val; this.save(); },
+      updateBest(score) { if (score > this.data.best) this.set('best', score);
+      },
+      addCoins(amount) { this.set('coins', this.data.coins + amount); },
+      spendCoins(amount) { if (this.data.coins >= amount) { this.set('coins', this.data.coins
+- amount); return true; }
+        return false;
+      },
+      getUpgradeLevel(type) { return this.data.upgrades[type] || 0; },
+      upgrade(type, cost) { const lvl = this.data.upgrades[type] || 0;
+        const isSkin = type.startsWith('skin_');
+        const maxLvl = isSkin ? 1 : (type === 'shield' ? 3 : (type ===
+'multiplier' ? 3 : 5));
+        if (this.data.coins >= cost && lvl < maxLvl) {
+          this.data.coins -= cost;
+          this.data.upgrades[type] = (this.data.upgrades[type] || 0) + 1;
+          if (isSkin)
+this.data.upgrades.ownedSkins.push(type.replace('skin_', ''));
+          this.save();
+          return true;
+        }
+        return false;
+      }
+    };
+
+    // ==========================================
+    // SECTION: AUDIO MANAGER
+    // ==========================================
+    class AudioManager {
+      constructor() { this.ctx = null;
+        this.initialized = false;
+      }
+      init() { if (this.initialized) return;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) {
+          this.ctx = new AC();
+          this.initialized = true;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+        }
+      }
+      play(freq, type, duration, vol = 0.15, slideTo = 0) { if (!this.initialized || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        if (slideTo !== 0) {
+          osc.frequency.exponentialRampToValueAtTime(Math.max(slideTo,
+freq/10), this.ctx.currentTime + duration);
+        }
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime
++ duration);
+        osc.connect(gain).connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration + 0.01);
+      }
+      flap() { this.play(320, 'sine', 0.1, 0.2); }
+      score() { this.play(523, 'square', 0.06, 0.1);
+        setTimeout(() => this.play(659, 'square', 0.08, 0.12), 70);
+      }
+      coin() { this.play(1200, 'triangle', 0.05, 0.08); }
+      crash() { this.play(180, 'sawtooth', 0.35, 0.25, 40); }
+      tapUI() { this.play(400, 'sine', 0.05, 0.05); }
+    }
+    const audio = new AudioManager();
+
+    // ==========================================
+    // SECTION: INPUT & UI HELPERS
+    // ==========================================
+    const Input = { keys: {},
+      tap: false,
+      init() { document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); this.tap = true; }
+          this.keys[e.code] = true;
+        });
+        document.addEventListener('keyup', e => { this.keys[e.code] = false; });
+
+        document.addEventListener('touchstart', (e) => { audio.init();
+this.tap = true; }, {once: true});
+        document.addEventListener('mousedown', (e) => { audio.init();
+this.tap = true; }, {once: true});
+      },
+      consumeTap() { if (this.tap) { this.tap = false; return true; }
+        return false;
+      }
+    };
+
+    const UI = { screens: {},
+      init() { this.screens = { start: document.getElementById('start-screen'),
+          hud: document.getElementById('game-hud'),
+          pause: document.getElementById('pause-overlay'),
+          gameover: document.getElementById('gameover-screen'),
+          shop: document.getElementById('shop-screen'),
+          lb: document.getElementById('leaderboard-screen')
+        };
+        this.bindEvents();
+      },
+      show(id) { Object.values(this.screens).forEach(el => { el.classList.remove('active'); el.style.display = 'none'; });
+        const el = this.screens[id];
+        el.classList.add('active');
+        el.style.display = '';
+      },
+      hideAll() { Object.values(this.screens).forEach(el => { el.classList.remove('active'); });
+      },
+      updateHUD(score, coins) { document.getElementById('hud-score').textContent = score;
+        document.getElementById('hud-coins').textContent = coins;
+      },
+      updateGameOver(score, best, runCoins) { document.getElementById('go-current-score').textContent = score;
+        document.getElementById('go-best-score').textContent = `BEST: ${best}`;
+        document.getElementById('go-coins').textContent = `+${runCoins} COINS`;
+        const stars = score < 10 ? 1 : score < 25 ? 2 : 3;
+        const container = document.getElementById('go-stars');
+        container.innerHTML = Array(3).fill(0).map((_, i) => `<span class="${i < stars ? 'star-filled' : 'star-empty'}">★</span>`
+        ).join('');
+      },
+      updateShop() { const grid = document.getElementById('shop-grid');
+        grid.innerHTML = '';
+        const coins = StorageManager.get('coins');
+        document.getElementById('shop-coins').textContent = coins;
+
+        const items = [ { id: 'skin_red', name: 'Red Bird', type: 'skin', cost: 100,
+max: 1, color: '#EF4444' },
+          { id: 'skin_blue', name: 'Blue Bird', type: 'skin', cost: 200,
+max: 1, color: '#3B82F6' },
+          { id: 'skin_gold', name: 'Gold Bird', type: 'skin', cost: 500,
+max: 1, color: '#D97706' },
+          { id: 'magnet', name: 'Magnet', type: 'magnet', cost: [50, 100,
+200, 400, 800], max: 5, color: '#A855F7' },
+          { id: 'shield', name: 'Shield', type: 'shield', cost: [100, 300,
+600], max: 3, color: '#06B6D4' },
+          { id: 'multiplier', name: 'Multiplier', type: 'multiplier',
+cost: [200, 500, 1000], max: 3, color: '#F97316' }
+        ];
+
+        items.forEach(item => { const lvl = StorageManager.getUpgradeLevel(item.id) || (StorageManager.getUpgradeLevel(item.type) || 0); // Simplified lookup
+          // Fix lookup logic for skins vs upgrades
+          let currentLvl = 0;
+          if (item.type === 'skin') {
+             if (item.id === 'skin_red') currentLvl = StorageManager.get('upgrades').ownedSkins?.includes('red') ? 1 : 0;
+             else if (item.id === 'skin_blue') currentLvl = StorageManager.get('upgrades').ownedSkins?.includes('blue') ? 1 : 0;
+             else if (item.id === 'skin_gold') currentLvl = StorageManager.get('upgrades').ownedSkins?.includes('gold') ? 1 : 0;
+             else currentLvl = 0;
+          } else { currentLvl = StorageManager.getUpgradeLevel(item.type);
+          }
+
+          const isMax = currentLvl >= item.max;
+          const costVal = Array.isArray(item.cost) ? item.cost[currentLvl]
+: item.cost;
+          const canBuy = coins >= costVal && !isMax;
+
+          const div = document.createElement('div');
+          div.className = 'card-rounded p-3 flex flex-col items-center gap-2';
+          div.innerHTML = ` <div class="w-12 h-12 rounded-full border-4 border-ink flex items-center justify-center shadow-sm" style="background:${item.color}"> <span class="text-white font-bold text-lg">${item.type === 'magnet' ? '🧲' : item.type === 'shield' ? '🛡️' : item.type === 'multiplier' ? '✖' : '🐦'}</span> </div> <div class="font-jakarta font-bold text-sm text-ink">${item.name}</div> <div class="text-ink/60 text-xs font-bold">Lvl ${currentLvl}/${item.max}</div> <button class="buy-btn w-full btn-bubbly ${isMax ? 'btn-neutral' : canBuy ? 'btn-primary' : 'btn-neutral'} text-sm py-2 px-2" data-type="${item.type}" data-cost="${costVal}"> ${isMax ? 'MAX' : costVal + ' 🪙'} </button> `;
+          grid.appendChild(div);
+        });
+
+        grid.querySelectorAll('.buy-btn').forEach(btn => { btn.onclick = () => { if (btn.classList.contains('btn-neutral')) return;
+            const cost = +btn.dataset.cost;
+            const type = btn.dataset.type;
+            if (StorageManager.upgrade(type, cost)) {
+              audio.tapUI();
+              this.updateShop();
+            } else { audio.crash();
+            }
+          }
+        });
+      },
+      updateLeaderboard() { const list = document.getElementById('lb-list');
+        list.innerHTML = '';
+        const lb = StorageManager.get('leaderboard') || [];
+        lb.forEach((entry, idx) => { const row = document.createElement('div');
+          row.className = 'bg-white rounded-2xl border-2 border-ink p-3 flex items-center justify-between';
+          row.innerHTML = ` <div class="flex items-center gap-2 w-16"> <span class="font-jakarta font-extrabold text-lg text-ink w-6">${idx + 1}</span> ${entry.crown || idx === 0 ? '<span>👑</span>' : ''} </div> <div class="flex-1 text-center font-jakarta font-bold text-sm text-ink">${entry.name}</div> <div class="w-20 text-right"> <div class="font-jakarta font-extrabold text-ink">${entry.score}</div> <div class="text-[10px] text-ink/60">${entry.date}</div> </div> `;
+          list.appendChild(row);
+        });
+      },
+      bindEvents() { const switchTo = (id) => { audio.tapUI(); this.show(id); };
+        document.getElementById('btn-play').onclick = () => { switchTo('hud'); game.start(); };
+        document.getElementById('btn-pause').onclick = () => { switchTo('pause'); game.pause(); };
+        document.getElementById('btn-resume').onclick = () => { switchTo('hud'); game.resume(); };
+        document.getElementById('btn-leaderboard-open').onclick = () => { UI.updateLeaderboard(); switchTo('lb'); };
+        document.getElementById('btn-shop-open').onclick = () => { UI.updateShop(); switchTo('shop'); };
+        document.getElementById('btn-shop-back').onclick = () => switchTo('start');
+        document.getElementById('btn-lb-back').onclick = () => switchTo('start');
+        document.getElementById('btn-pause-home').onclick = () => switchTo('start');
+        document.getElementById('btn-restart').onclick = () => { switchTo('hud'); game.start(); };
+        document.getElementById('btn-go-home').onclick = () => switchTo('start');
+      }
+    };
+
+    // ==========================================
+    // SECTION: GAME ENGINE
+    // ==========================================
+    class Game {
+      constructor(canvasId) { this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
+        this.width = 0; this.height = 0; this.dpr = 1;
+        this.state = 'START'; // START, PLAYING, PAUSED, GAMEOVER
+        this.reset();
+        this.bindResize();
+        this.loop = this.loop.bind(this);
+        requestAnimationFrame(this.loop);
+      }
+
+      reset() { this.score = 0;
+        this.runCoins = 0;
+        this.frameCount = 0;
+        this.lastTime = 0;
+        this.timer = 0;
+        this.isShieldActive = false;
+
+        this.bird = { x: 0, y: 0, vy: 0, r: 0, rot: 0, wing: 0, skinColor: CONFIG.colors.skinDefault };
+        this.pipes = [];
+        this.coins = [];
+        this.clouds = [];
+        this.particles = [];
+        this.groundY = 0;
+      }
+
+      resize() { this.dpr = window.devicePixelRatio || 1;
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        this.canvas.width = this.width * this.dpr;
+        this.canvas.height = this.height * this.dpr;
+        this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+
+        this.groundY = this.height - (this.height * CONFIG.groundRatio);
+        this.bird.x = this.width * CONFIG.birdXRatio;
+        this.bird.r = Math.min(this.width, this.height) *
+CONFIG.birdRadiusRatio;
+      }
+
+      bindResize() { this.resize();
+        this.initClouds();
+        window.addEventListener('resize', () => { this.resize();
+          if (this.clouds.length === 0) this.initClouds();
+        });
+      }
+
+      initClouds() { this.clouds = [];
+        for (let i = 0; i < 5; i++) {
+          this.clouds.push({ x: Math.random() * this.width, y: Math.random() * (this.height * 0.5), s: 0.5 + Math.random() * 1.2, op: 0.4
++ Math.random() * 0.4 });
+        }
+      }
+
+      start() { this.reset();
+        this.state = 'PLAYING';
+        this.bird.y = this.height / 2;
+        this.bird.vy = 0;
+        UI.hideAll();
+        UI.show('hud');
+        document.getElementById('hud-score').textContent = '0';
+      }
+
+      pause() { this.state = 'PAUSED'; }
+      resume() { this.state = 'PLAYING'; UI.show('hud'); }
+
+      gameOver() { this.state = 'GAMEOVER';
+        audio.crash();
+        this.spawnParticles(this.bird.x, this.bird.y, this.bird.skinColor,
+15);
+
+        StorageManager.updateBest(this.score);
+        StorageManager.addCoins(this.runCoins);
+        this.saveToLeaderboard(this.score);
+
+        setTimeout(() => { UI.updateGameOver(this.score, StorageManager.get('best'),
+this.runCoins);
+          UI.show('gameover');
+          UI.updateHUD(0, 0);
+        }, 600);
+      }
+
+      saveToLeaderboard(score) { if (score < 5) return;
+        const lb = StorageManager.get('leaderboard') || [];
+        lb.push({ name: 'You', score, date: new
+Date().toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit'}),
+crown: false });
+        lb.sort((a,b) => b.score - a.score);
+        if (lb.length > 10) lb.length = 10;
+        lb[0].crown = true;
+        StorageManager.set('leaderboard', lb);
+      }
+
+      flap() { if (this.state !== 'PLAYING') return;
+        this.bird.vy = CONFIG.flapForce;
+        this.bird.wing = -30;
+        audio.flap();
+      }
+
+      spawnParticles(x, y, color, count) { for (let i = 0; i < count; i++) { this.particles.push({ x, y, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8,
+            life: 1.0, color, size: Math.random()*4+2
+          });
+        }
+      }
+
+      update(dt) { if (this.state !== 'PLAYING') return;
+        dt = Math.min(dt, CONFIG.maxDt) / 16.67; // Normalize to ~60fps
+
+        this.frameCount += dt;
+        this.timer += dt * 16.67;
+
+        // Bird Physics
+        this.bird.vy += CONFIG.gravity * dt;
+        this.bird.y += this.bird.vy * dt;
+        this.bird.rot = Math.min(Math.max(this.bird.vy * 6, -35), 90);
+        if (this.bird.wing < 30) this.bird.wing += 4 * dt;
+
+        // Clouds
+        this.clouds.forEach(c => { c.x -= 0.5 * dt * (c.s + 0.5);
+          if (c.x + 60 < 0) { c.x = this.width + 40; c.y = Math.random() *
+(this.groundY * 0.6); }
+        });
+
+        // Pipes
+        const diff = this.getDifficulty();
+        const groundH = this.height * CONFIG.groundRatio;
+
+        // Spawn
+        const interval = Math.max(diff.spawnInterval,
+CONFIG.minSpawnInterval);
+        if (this.timer > interval) {
+          this.timer = 0;
+          const maxTop = this.height * 0.5;
+          const minTop = 60;
+          const topH = minTop + Math.random() * (maxTop - minTop);
+          const bottomH = this.height - (topH + diff.gap + groundH);
+          this.pipes.push({ x: this.width, topH, bottomH, passed: false
+});
+
+          // Coin spawn
+          if (Math.random() > 0.35) {
+            this.coins.push({ x: this.width + CONFIG.pipeWidth/2, y: topH
++ diff.gap/2, r: 14, collected: false });
+          }
+        }
+
+        // Move Pipes & Coins
+        this.pipes.forEach(p => p.x -= diff.speed * dt);
+        this.coins.forEach(c => { c.x -= diff.speed * dt;
+          if (c.collected) return;
+
+          // Magnet
+          const magLvl = StorageManager.getUpgradeLevel('magnet');
+          const magRange = 60 + magLvl * 40;
+          const dx = this.bird.x - c.x, dy = this.bird.y - c.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+
+          if (dist < magRange) {
+            const speed = 5 * dt;
+            c.x += (dx/dist) * speed;
+            c.y += (dy/dist) * speed;
+          }
+          // Collect
+          const cDist = Math.hypot(this.bird.x - c.x, this.bird.y - c.y);
+          if (cDist < this.bird.r + c.r) {
+            c.collected = true;
+            const mult = 1 + (StorageManager.getUpgradeLevel('multiplier')
+|| 0);
+            this.runCoins += mult;
+            audio.coin();
+            this.spawnParticles(c.x, c.y, '#FFF', 5);
+          }
+        });
+
+        // Cleanup
+        this.pipes = this.pipes.filter(p => p.x > -CONFIG.pipeWidth);
+        this.coins = this.coins.filter(c => c.x > -30 && !c.collected);
+
+        // Scoring
+        this.pipes.forEach(p => { if (!p.passed && p.x + CONFIG.pipeWidth < this.bird.x - this.bird.r) { p.passed = true;
+            this.score++;
+            document.getElementById('hud-score').textContent = this.score;
+            audio.score();
+            const floatEl = document.createElement('div');
+            floatEl.className = 'float-score';
+            floatEl.textContent = '+1';
+            floatEl.style.left = `${this.bird.x}px`;
+            floatEl.style.top = `${this.bird.y - 40}px`;
+            document.body.appendChild(floatEl);
+            requestAnimationFrame(() => floatEl.style.opacity = '1');
+            setTimeout(() => { floatEl.remove(); }, 800);
+          }
+        });
+
+        // Collision
+        this.bird.r = Math.min(this.width, this.height) *
+CONFIG.birdRadiusRatio;
+
+        // Ground
+        if (this.bird.y + this.bird.r > this.groundY) {
+          this.gameOver();
+          return;
+        }
+        // Ceiling
+        if (this.bird.y - this.bird.r < 0) { this.bird.y = this.bird.r;
+this.bird.vy = 0; }
+
+        // Pipes
+        let hitPipe = false;
+        for (const p of this.pipes) {
+          if (this.checkRect(this.bird, {x:p.x, y:0, w:CONFIG.pipeWidth,
+h:p.topH})) { hitPipe = true; break; }
+          if (this.checkRect(this.bird, {x:p.x, y:this.height - p.bottomH,
+w:CONFIG.pipeWidth, h:p.bottomH})) { hitPipe = true; break; }
+          // Caps
+          if (this.checkRect(this.bird, {x:p.x-CONFIG.capOverhang,
+y:p.topH-CONFIG.pipeCapHeight, w:CONFIG.pipeWidth+CONFIG.capOverhang*2,
+h:CONFIG.pipeCapHeight})) { hitPipe = true; break; }
+          const botCapY = this.height - p.bottomH;
+          if (this.checkRect(this.bird, {x:p.x-CONFIG.capOverhang,
+y:botCapY, w:CONFIG.pipeWidth+CONFIG.capOverhang*2,
+h:CONFIG.pipeCapHeight})) { hitPipe = true; break; }
+        }
+
+        if (hitPipe) {
+          const shieldLvl = StorageManager.getUpgradeLevel('shield');
+          if (shieldLvl > 0 && !this.isShieldActive) {
+            this.isShieldActive = true;
+            StorageManager.set('upgrades',
+{...StorageManager.get('upgrades'), shield: shieldLvl - 1});
+            audio.tapUI();
+            setTimeout(() => this.isShieldActive = false, 2000);
+          } else if (!this.isShieldActive) { this.gameOver();
+            return;
+          }
+        }
+
+        // Particles
+        this.particles = this.particles.filter(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= 0.03 * dt; p.size
+*= 0.98;
+          return p.life > 0;
+        });
+      }
+
+      checkRect(circle, rect) { const cx = Math.max(rect.x, Math.min(circle.x, rect.x + rect.w));
+        const cy = Math.max(rect.y, Math.min(circle.y, rect.y + rect.h));
+        return Math.hypot(circle.x - cx, circle.y - cy) < circle.r;
+      }
+
+      getDifficulty() { if (this.score < 6) return { speed: 2.2, gap: 170, spawnInterval: CONFIG.baseSpawnInterval };
+        if (this.score < 16) return { speed: 2.8, gap: 150, spawnInterval: 1350 };
+        if (this.score < 31) return { speed: 3.5, gap: 135, spawnInterval: 1200 };
+        return { speed: 4.2, gap: 120, spawnInterval: CONFIG.minSpawnInterval };
+      }
+
+      draw() { const ctx = this.ctx;
+        const w = this.width, h = this.height, ground = this.groundY;
+
+        // Sky
+        const grad = ctx.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, CONFIG.colors.skyTop); grad.addColorStop(1,
+CONFIG.colors.skyBottom);
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+
+        // Clouds
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        this.clouds.forEach(c => { ctx.globalAlpha = c.op;
+          this.drawCloud(ctx, c.x, c.y, c.s);
+          ctx.globalAlpha = 1;
+        });
+
+        // Pipes
+        this.pipes.forEach(p => this.drawPipe(ctx, p, ground));
+
+        // Coins
+        this.coins.forEach(c => { if (!c.collected) this.drawCoin(ctx, c.x, c.y, c.r);
+        });
+
+        // Bird
+        if (this.state === 'PLAYING' || this.isShieldActive || this.state
+=== 'GAMEOVER') { const bCol = this.getBirdColor();
+          this.drawBird(ctx, this.bird.x, this.bird.y, this.bird.r,
+this.bird.rot, bCol, this.isShieldActive);
+          if (this.isShieldActive) {
+            ctx.strokeStyle = 'rgba(0,255,200,0.6)'; ctx.lineWidth = 4;
+            ctx.shadowColor = '#00FFCC'; ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.arc(this.bird.x, this.bird.y, this.bird.r
++ 8 + Math.sin(this.frameCount)*4, 0, Math.PI*2); ctx.stroke();
+            ctx.restore && ctx.restore();
+            ctx.shadowBlur = 0;
+          }
+        } else {
+          // Start screen idle bird on canvas background
+          this.drawBird(ctx, w*0.25, h/2, Math.min(w,h)*0.05, 0,
+'#F8E71C', false, true);
+        }
+
+        // Ground
+        ctx.fillStyle = CONFIG.colors.grass; ctx.fillRect(0, ground, w, h
+- ground);
+        ctx.strokeStyle = CONFIG.colors.ink; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(0, ground); ctx.lineTo(w, ground);
+ctx.stroke();
+
+        // Grass details
+        ctx.fillStyle = '#60B51A';
+        for (let i = 0; i < w; i += 24) {
+          ctx.beginPath(); ctx.arc(i, ground + 4, 6, 0, Math.PI*2);
+ctx.fill();
+        }
+
+        // Particles
+        this.particles.forEach(p => { ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+ctx.fill();
+          ctx.globalAlpha = 1;
+        });
+
+        // Input handling inside loop for responsiveness
+        if (Input.consumeTap()) this.flap();
+      }
+
+      loop(timestamp) { const dt = timestamp - this.lastTime;
+        this.lastTime = timestamp;
+        if (this.state === 'START') { this.draw(); }
+        else { this.update(dt); this.draw(); }
+        requestAnimationFrame(this.loop);
+      }
+
+      // ==========================================
+      // SECTION: DRAWING HELPERS
+      // ==========================================
+      getBirdColor() { const skin = StorageManager.get('upgrades').skin || 'default';
+        if (skin === 'red') return '#EF4444';
+        if (skin === 'blue') return '#3B82F6';
+        if (skin === 'gold') return '#EAB308';
+        return CONFIG.colors.skinDefault;
+      }
+
+      drawCloud(ctx, x, y, scale) { ctx.beginPath();
+        ctx.arc(x, y, 20 * scale, 0, Math.PI * 2);
+        ctx.arc(x + 25 * scale, y - 10 * scale, 25 * scale, 0, Math.PI *
+2);
+        ctx.arc(x + 20 * scale, y, 18 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      drawPipe(ctx, p, ground) { const w = CONFIG.pipeWidth;
+        const g = ctx.createLinearGradient(p.x, 0, p.x + w, 0);
+        g.addColorStop(0, '#4C9A4C'); g.addColorStop(1,
+CONFIG.colors.grass);
+        ctx.fillStyle = g; ctx.strokeStyle = CONFIG.colors.ink;
+ctx.lineWidth = 3;
+
+        // Top Pipe
+        ctx.fillRect(p.x, 0, w, p.topH - CONFIG.pipeCapHeight);
+        ctx.strokeRect(p.x, 0, w, p.topH - CONFIG.pipeCapHeight);
+        // Top Cap
+        ctx.beginPath();
+        ctx.roundRect(p.x - 8, p.topH - CONFIG.pipeCapHeight, w + 16,
+CONFIG.pipeCapHeight, 6);
+        ctx.fill(); ctx.stroke();
+
+        // Bottom Pipe
+        const bY = ground - p.bottomH;
+        ctx.fillRect(p.x, bY + CONFIG.pipeCapHeight, w, p.bottomH);
+        ctx.strokeRect(p.x, bY + CONFIG.pipeCapHeight, w, p.bottomH);
+        // Bottom Cap
+        ctx.beginPath();
+        ctx.roundRect(p.x - 8, bY, w + 16, CONFIG.pipeCapHeight, 6);
+        ctx.fill(); ctx.stroke();
+      }
+
+      drawCoin(ctx, x, y, r) { ctx.fillStyle = CONFIG.colors.coin; ctx.strokeStyle = CONFIG.colors.ink; ctx.lineWidth = 3;
+        ctx.shadowColor = 'rgba(248,231,28,0.4)'; ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+ctx.stroke();
+        ctx.beginPath(); ctx.arc(x-3, y-3, r*0.4, 0, Math.PI*2);
+ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      drawBird(ctx, x, y, r, rot, color, shield, idle = false) { ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot * Math.PI / 180);
+
+        // Body
+        ctx.fillStyle = color; ctx.strokeStyle = CONFIG.colors.ink;
+ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.ellipse(0, 0, r*1.1, r, 0, 0, Math.PI*2);
+ctx.fill(); ctx.stroke();
+
+        // Eye
+        ctx.fillStyle = '#FFF'; ctx.beginPath(); ctx.arc(r*0.4, -r*0.2,
+r*0.35, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(r*0.5, -r*0.2,
+r*0.12, 0, Math.PI*2); ctx.fill();
+
+        // Beak
+        ctx.fillStyle = '#FF5A5F'; ctx.beginPath();
+        ctx.moveTo(r*0.6, r*0.1); ctx.lineTo(r*1.3, r*0.3);
+ctx.lineTo(r*0.6, r*0.5); ctx.fill(); ctx.stroke();
+
+        // Wing
+        ctx.fillStyle = shadeColor(color, -20);
+        ctx.beginPath(); ctx.ellipse(-r*0.2, r*0.3, r*0.6, r*0.3,
+this.bird.wing * 0.05, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+        // Shield flash
+        if (shield && Math.floor(performance.now() / 150) % 2 === 0) {
+          ctx.globalCompositeOperation = 'source-atop';
+          ctx.fillStyle = 'rgba(255,255,255,0.3)';
+          ctx.beginPath(); ctx.arc(0, 0, r*1.2, 0, Math.PI*2); ctx.fill();
+          ctx.globalCompositeOperation = 'source-over';
+        }
+
+        ctx.restore();
+      }
+    }
+
+    function shadeColor(color, percent) {
+      let R = parseInt(color.substring(2,4),16);
+      let G = parseInt(color.substring(4,6),16);
+      let B = parseInt(color.substring(6,8),16);
+      R = parseInt(R * (100 + percent) / 100); G = parseInt(G * (100 + percent) / 100); B = parseInt(B * (100 + percent) / 100);
+      R = (R<255)?R:255; G = (G<255)?G:255; B = (B<255)?B:255;
+      return `#${ (R.toString(16).length==1?"0"+R.toString(16):R.toString(16))}${ (G.toString(16).length==1?"0"+G.toString(16):G.toString(16))}${ (B.toString(16).length==1?"0"+B.toString(16):B.toString(16))}`;
+    }
+
+    // ==========================================
+    // SECTION: INITIALIZATION
+    // ==========================================
+    let game;
+    window.addEventListener('DOMContentLoaded', async () => { await document.fonts.ready;
+      StorageManager.init();
+      Input.init();
+      UI.init();
+
+      game = new Game('gameCanvas');
+      UI.updateHUD(0, 0);
+      document.getElementById('best-score-display').textContent = `BEST: ${StorageManager.get('best')}`;
+
+      // Prevent default gestures
+      document.body.addEventListener('touchmove', e => e.preventDefault(),
+{ passive: false });
+      document.addEventListener('keydown', e => { if(e.key===' ')
+e.preventDefault(); });
+    });
+  </script>
+</body>
+</html>
