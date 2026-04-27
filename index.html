@@ -535,6 +535,7 @@ cost: [200, 500, 1000], max: 3, color: '#F97316' }
         this.state = 'PLAYING';
         this.bird.y = this.height * 0.35;
         this.bird.vy = -2;
+        this.lastTime = performance.now();
         UI.hideAll();
         UI.show('hud');
         document.getElementById('hud-score').textContent = '0';
