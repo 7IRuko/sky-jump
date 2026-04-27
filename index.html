@@ -242,8 +242,8 @@ id="lb-list">
         pipe: ['#5CB85C', '#7ED321'], coin: '#F8E71C', skinDefault: '#F8E71C',
         ink: '#2D3436'
       },
-      gravity: 0.4,
-      flapForce: -7.5,
+      gravity: 0.25,
+      flapForce: -6,
       birdXRatio: 0.25,
       birdRadiusRatio: 0.04,
       groundRatio: 0.12,
@@ -532,8 +532,8 @@ cost: [200, 500, 1000], max: 3, color: '#F97316' }
 
       start() { this.reset(); this.resize(); this.initClouds();
         this.state = 'PLAYING';
-        this.bird.y = this.height / 2;
-        this.bird.vy = 0;
+        this.bird.y = this.height * 0.35;
+        this.bird.vy = -2;
         UI.hideAll();
         UI.show('hud');
         document.getElementById('hud-score').textContent = '0';
