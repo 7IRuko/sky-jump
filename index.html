@@ -505,16 +505,15 @@ cost: [200, 500, 1000], max: 3, color: '#F97316' }
       }
 
       resize() { this.dpr = window.devicePixelRatio || 1;
-        this.width = window.innerWidth;
-        this.height = window.innerHeight;
+        this.width = window.innerWidth || 375;
+        this.height = window.innerHeight || 667;
         this.canvas.width = this.width * this.dpr;
         this.canvas.height = this.height * this.dpr;
         this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
 
         this.groundY = this.height - (this.height * CONFIG.groundRatio);
         this.bird.x = this.width * CONFIG.birdXRatio;
-        this.bird.r = Math.min(this.width, this.height) *
-CONFIG.birdRadiusRatio;
+        this.bird.r = Math.min(this.width, this.height) * CONFIG.birdRadiusRatio;
       }
 
       bindResize() { this.resize();
@@ -531,7 +530,7 @@ CONFIG.birdRadiusRatio;
         }
       }
 
-      start() { this.reset();
+      start() { this.reset(); this.resize(); this.initClouds();
         this.state = 'PLAYING';
         this.bird.y = this.height / 2;
         this.bird.vy = 0;
